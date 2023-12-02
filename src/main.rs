@@ -62,7 +62,10 @@ fn main() -> Result<()> {
             eprintln!("{line}");
             let positions: Vec<_> = numbers
                 .iter()
-                .flat_map(|(k, number)| line.match_indices(k).map(|(pos, _)| (number.to_owned(), pos)))
+                .flat_map(|(k, number)| {
+                    line.match_indices(k)
+                        .map(|(pos, _)| (number.to_owned(), pos))
+                })
                 .collect();
 
             let first = positions
