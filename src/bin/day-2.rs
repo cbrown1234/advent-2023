@@ -85,5 +85,50 @@ fn main() -> Result<()> {
         .sum();
 
     println!("Valid games sum = {game_id_sum}");
+
+
+    let file = File::open("inputs/day2.txt")?;
+    let buf_reader = BufReader::new(file);
+    let lines = buf_reader
+        .lines()
+        .map(|line| line.expect("able to read file"));
+
+    let game_id_sum: i32 = lines
+        .map(|line| {
+            eprintln!("{line}");
+            let line = line
+                .strip_prefix("Game ")
+                .expect("has 'Game ' prefix")
+                .split_once(':')
+                .expect("has ':' separator");
+            (line.0.to_owned(), line.1.to_owned())
+        })
+        .map(|(id, games)| {
+            (
+                id.parse::<i32>().expect("game id to be valid int"),
+                parse_games_desc(&games),
+            )
+        })
+        .map(|(id, games)| {
+            let result = (
+                id,
+                games.iter().fold(Game::default(), |max_seen, x| {
+                    dbg!(x);
+                    Game {
+                        red: max_seen.red.max(x.red),
+                        green: max_seen.green.max(x.green),
+                        blue: max_seen.blue.max(x.blue),
+                    }
+                }),
+            );
+            dbg!(&result);
+            result
+        })
+        .map(|(_id, game)| {
+            game.red * game.green * game.blue
+        })
+        .sum();
+
+    println!("Colour power sum = {game_id_sum}");
     Ok(())
 }
