@@ -3,7 +3,8 @@ use std::{
     io::{BufRead, BufReader},
 };
 
-use anyhow::Result;
+use anyhow::{Context, Ok, Result};
+use itertools::Itertools;
 
 // require max: 12 red cubes, 13 green cubes, and 14 blue cubes per game
 const MAX_RED: i32 = 12;
@@ -17,26 +18,27 @@ struct Game {
     blue: i32,
 }
 
-fn parse_game(desc: &str) -> Game {
+fn parse_game(desc: &str) -> Result<Game> {
     let mut game = Game::default();
     dbg!(desc);
     desc.split(',')
         .map(|num_colour| num_colour.trim())
-        .map(|num_colour| match num_colour.split_once(' ') {
-            Some((reds, "red")) => game.red = reds.parse::<i32>().expect("Valid number of colour"),
-            Some((greens, "green")) => {
-                game.green = greens.parse::<i32>().expect("Valid number of colour");
+        .try_for_each::<_, Result<()>>(|num_colour| match num_colour.split_once(' ') {
+            Some((reds, "red")) => {
+                Ok(game.red = reds.parse::<i32>().context("failed to parse red number")?)
             }
-            Some((blues, "blue")) => {
-                game.blue = blues.parse::<i32>().expect("Valid number of colour");
-            }
-            _ => {}
-        })
-        .count();
-    game
+            Some((greens, "green")) => Ok(game.green = greens
+                .parse::<i32>()
+                .context("failed to parse green number")?),
+            Some((blues, "blue")) => Ok(game.blue = blues
+                .parse::<i32>()
+                .context("failed to parse blue number")?),
+            _ => Ok(()),
+        })?;
+    Ok(game)
 }
 
-fn parse_games_desc(desc: &str) -> Vec<Game> {
+fn parse_games_desc(desc: &str) -> Result<Vec<Game>> {
     desc.split(';').map(|game| parse_game(game)).collect()
 }
 
@@ -47,23 +49,20 @@ fn main() -> Result<()> {
         .lines()
         .map(|line| line.expect("able to read file"));
 
-    let game_id_sum: i32 = lines
+    let game_id_sum = lines
         .map(|line| {
             eprintln!("{line}");
-            let line = line
+            let (id, games) = line
                 .strip_prefix("Game ")
-                .expect("has 'Game ' prefix")
+                .context("has no 'Game ' prefix")?
                 .split_once(':')
-                .expect("has ':' separator");
-            (line.0.to_owned(), line.1.to_owned())
+                .context("has no ':' separator")?;
+            Ok((
+                id.parse::<i32>().context("game id not valid int")?,
+                parse_games_desc(&games)?,
+            ))
         })
-        .map(|(id, games)| {
-            (
-                id.parse::<i32>().expect("game id to be valid int"),
-                parse_games_desc(&games),
-            )
-        })
-        .map(|(id, games)| {
+        .map_ok(|(id, games)| {
             let result = (
                 id,
                 games.iter().fold(Game::default(), |max_seen, x| {
@@ -78,14 +77,13 @@ fn main() -> Result<()> {
             dbg!(&result);
             result
         })
-        .filter(|(_id, game)| {
+        .filter_ok(|(_id, game)| {
             game.red <= MAX_RED && game.green <= MAX_GREEN && game.blue <= MAX_BLUE
         })
-        .map(|(id, _)| id)
-        .sum();
+        .map_ok(|(id, _)| id)
+        .sum::<Result<i32>>()?;
 
     println!("Valid games sum = {game_id_sum}");
-
 
     let file = File::open("inputs/day2.txt")?;
     let buf_reader = BufReader::new(file);
@@ -93,23 +91,20 @@ fn main() -> Result<()> {
         .lines()
         .map(|line| line.expect("able to read file"));
 
-    let game_id_sum: i32 = lines
+    let game_id_sum = lines
         .map(|line| {
             eprintln!("{line}");
-            let line = line
+            let (id, games) = line
                 .strip_prefix("Game ")
-                .expect("has 'Game ' prefix")
+                .context("has no 'Game ' prefix")?
                 .split_once(':')
-                .expect("has ':' separator");
-            (line.0.to_owned(), line.1.to_owned())
+                .context("has no ':' separator")?;
+            Ok((
+                id.parse::<i32>().context("game id not valid int")?,
+                parse_games_desc(&games)?,
+            ))
         })
-        .map(|(id, games)| {
-            (
-                id.parse::<i32>().expect("game id to be valid int"),
-                parse_games_desc(&games),
-            )
-        })
-        .map(|(id, games)| {
+        .map_ok(|(id, games)| {
             let result = (
                 id,
                 games.iter().fold(Game::default(), |max_seen, x| {
@@ -124,10 +119,9 @@ fn main() -> Result<()> {
             dbg!(&result);
             result
         })
-        .map(|(_id, game)| {
-            game.red * game.green * game.blue
-        })
-        .sum();
+        .map_ok(|(_id, game)| game.red * game.green * game.blue)
+        .sum::<Result<i32>>()?;
+    let game_id_sum = game_id_sum;
 
     println!("Colour power sum = {game_id_sum}");
     Ok(())
