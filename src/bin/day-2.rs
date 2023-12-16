@@ -3,7 +3,7 @@ use std::{
     io::{BufRead, BufReader},
 };
 
-use anyhow::{Context, Ok, Result};
+use anyhow::{Context, Result};
 use itertools::Itertools;
 
 // require max: 12 red cubes, 13 green cubes, and 14 blue cubes per game
