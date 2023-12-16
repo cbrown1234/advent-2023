@@ -5,11 +5,18 @@ use std::{
 
 use anyhow::{Context, Result};
 use itertools::Itertools;
+use thiserror::Error;
 
 // require max: 12 red cubes, 13 green cubes, and 14 blue cubes per game
 const MAX_RED: i32 = 12;
 const MAX_GREEN: i32 = 13;
 const MAX_BLUE: i32 = 14;
+
+#[derive(Error, Debug)]
+pub enum AssumptionError {
+    #[error("invalid header (expected '#=red', '#=green' or '#=blue', found {colour:?})")]
+    InvalidColour { colour: String },
+}
 
 #[derive(Default, Debug)]
 struct Game {
@@ -21,20 +28,28 @@ struct Game {
 fn parse_game(desc: &str) -> Result<Game> {
     let mut game = Game::default();
     dbg!(desc);
-    desc.split(',')
-        .map(|num_colour| num_colour.trim())
-        .try_for_each::<_, Result<()>>(|num_colour| match num_colour.split_once(' ') {
+    let colour_descs = desc.split(',').map(|num_colour| num_colour.trim());
+
+    for num_colour in colour_descs {
+        match num_colour.split_once(' ') {
             Some((reds, "red")) => {
-                Ok(game.red = reds.parse::<i32>().context("failed to parse red number")?)
+                game.red = reds.parse::<i32>().context("failed to parse red number")?
             }
-            Some((greens, "green")) => Ok(game.green = greens
-                .parse::<i32>()
-                .context("failed to parse green number")?),
-            Some((blues, "blue")) => Ok(game.blue = blues
-                .parse::<i32>()
-                .context("failed to parse blue number")?),
-            _ => Ok(()),
-        })?;
+            Some((greens, "green")) => {
+                game.green = greens
+                    .parse::<i32>()
+                    .context("failed to parse green number")?
+            }
+            Some((blues, "blue")) => {
+                game.blue = blues
+                    .parse::<i32>()
+                    .context("failed to parse blue number")?
+            }
+            _ => Err(AssumptionError::InvalidColour {
+                colour: num_colour.to_owned(),
+            })?,
+        }
+    }
     Ok(game)
 }
 
